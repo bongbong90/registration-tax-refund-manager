@@ -12,6 +12,11 @@ data/cases/*
 !data/cases/.gitkeep
 data/backup/*
 !data/backup/.gitkeep
+data/hwp_test_output/
+
+# Sensitive office config
+config/office_info.json
+config/office_info.lock
 
 # Logs
 logs/*
