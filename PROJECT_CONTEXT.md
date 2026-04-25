@@ -167,7 +167,7 @@ CREATE INDEX idx_clients_corp_no ON clients(corporation_no);
 - [x] 환경 구축 (PaddleOCR 3.x 안정화)
 - [x] OCR 검증 미니 프로젝트 (97.1% 자동 추출 성공)
 - [ ] **Phase 1-1** (현재): 본 프로젝트 폴더 구조 + DB 스키마 + OCR 이식
-- [ ] **Phase 1-2**: 거래처 마스터 CRUD
+- [x] **Phase 1-2**: 거래처 마스터 CRUD
 - [ ] **Phase 1-3**: HWP 3종 치환·생성
 - [ ] **Phase 1-4**: 사건 생성 플로우 + 메인 GUI
 - [ ] **Phase 2**: 대시보드, 이벤트 타임라인, 통계
