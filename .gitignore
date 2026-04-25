@@ -1,0 +1,22 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+
+# Virtual env
+.venv/
+venv/
+
+# Local DB and case data
+data/refund.db
+data/cases/*
+!data/cases/.gitkeep
+data/backup/*
+!data/backup/.gitkeep
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Sensitive document artifacts
+*.pdf
+*.hwp
