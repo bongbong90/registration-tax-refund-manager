@@ -35,6 +35,28 @@ QLineEdit#search_input {
     padding: 8px 0px;
 }
 
+/* ─── 콤보박스 ─── */
+QComboBox {
+    background-color: #FFFFFF;
+    border: 1px solid #DDE1E7;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #2D2D2D;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: 1px solid #DDE1E7;
+}
+QComboBox::down-arrow {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #7F8C8D;
+}
+
 /* ─── 기본 버튼 ─── */
 QPushButton#btn_primary {
     background-color: #2E86AB;

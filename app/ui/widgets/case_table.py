@@ -3,10 +3,10 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView,
     QLineEdit, QComboBox, QPushButton, QLabel,
     QStackedWidget, QFrame, QListView,
-    QStyledItemDelegate, QStyle,
+    QStyledItemDelegate, QStyle, QMenu,
 )
 from PySide6.QtCore import Signal, Qt, QTimer, QRect
-from PySide6.QtGui import QColor, QPixmap, QPainter, QPen, QPalette
+from PySide6.QtGui import QColor, QPixmap, QPainter, QPen, QPalette, QFont
 
 
 STATUS_LABELS = {
@@ -19,34 +19,11 @@ STATUS_LABELS = {
     "CLOSED":        "종결",
 }
 
-STATUS_COLORS = {
-    "CREATED":       "#7F8C8D",
-    "SENT_TO_BANK":  "#2E86AB",
-    "BANK_RETURNED": "#5DADE2",
-    "SUBMITTED":     "#F39C12",
-    "REFUND_DECIDED": "#27AE60",
-    "DEPOSITED":     "#1E8449",
-    "CLOSED":        "#95A5A6",
-}
-
-# (배경색, 텍스트색)
-STATUS_BADGE = {
-    "CREATED":        ("#E8F4FD", "#2E86AB"),
-    "SENT_TO_BANK":   ("#FEF9E7", "#F39C12"),
-    "BANK_RETURNED":  ("#FEF9E7", "#F39C12"),
-    "SUBMITTED":      ("#FEF9E7", "#F39C12"),
-    "REFUND_DECIDED": ("#E8F8F5", "#27AE60"),
-    "DEPOSITED":      ("#E8F8F5", "#27AE60"),
-    "CLOSED":         ("#F2F3F4", "#7F8C8D"),
-}
-
 ROW_BG = ("#FFFFFF", "#F8F9FA")  # 짝수, 홀수
 
 
 class StatusDelegate(QStyledItemDelegate):
-    """상태 컬럼 — 둥근 뱃지 직접 페인팅."""
-
-    _STYLE = {
+    STATUS_STYLE = {
         "서류생성": ("#E8F4FD", "#2E86AB"),
         "은행송부": ("#FEF9E7", "#F39C12"),
         "은행회신": ("#FEF9E7", "#F39C12"),
@@ -56,24 +33,22 @@ class StatusDelegate(QStyledItemDelegate):
         "종결":     ("#F2F3F4", "#7F8C8D"),
     }
 
-    def paint(self, painter: QPainter, option, index):
-        text = index.data() or ""
-        bg, fg = self._STYLE.get(text, ("#F2F3F4", "#7F8C8D"))
+    def paint(self, painter, option, index):
+        text = index.data(Qt.ItemDataRole.DisplayRole)
+        bg, fg = self.STATUS_STYLE.get(text, ("#F2F3F4", "#7F8C8D"))
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # 셀 배경
         if option.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(option.rect, QColor("#D6EAF8"))
         elif option.state & QStyle.StateFlag.State_MouseOver:
             painter.fillRect(option.rect, QColor("#EBF5FB"))
         else:
-            row = index.row()
-            painter.fillRect(option.rect, QColor(ROW_BG[row % 2]))
+            painter.fillRect(option.rect, QColor("#FFFFFF"))
 
-        # 뱃지
-        badge_w, badge_h = 76, 24
+        badge_w = 80
+        badge_h = 24
         x = option.rect.x() + (option.rect.width() - badge_w) // 2
         y = option.rect.y() + (option.rect.height() - badge_h) // 2
         badge_rect = QRect(x, y, badge_w, badge_h)
@@ -82,11 +57,10 @@ class StatusDelegate(QStyledItemDelegate):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(badge_rect, 12, 12)
 
-        painter.setPen(QColor(fg))
-        font = painter.font()
+        font = QFont("맑은 고딕", 9)
         font.setBold(True)
-        font.setPointSize(9)
         painter.setFont(font)
+        painter.setPen(QColor(fg))
         painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, text)
         painter.restore()
 
@@ -146,6 +120,7 @@ class AlignedPopupComboBox(QComboBox):
 class CaseTableWidget(QWidget):
     case_selected = Signal(int)
     add_requested = Signal()
+    copy_requested = Signal(int)
 
     COLUMNS    = ["납부일", "납세자", "세액", "환급사유", "상태"]
     COL_WIDTHS = [110, 0, 110, 130, 100]  # 0 = stretch
@@ -371,8 +346,10 @@ class CaseTableWidget(QWidget):
                 self.table.setColumnWidth(i, width)
 
         self.table.setMouseTracking(True)
-        self.table.setItemDelegateForColumn(4, StatusDelegate(self.table))
+        self.table.setItemDelegateForColumn(4, StatusDelegate(self))
         self.table.doubleClicked.connect(self._on_double_click)
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._open_context_menu)
         self.table_stack.addWidget(self.table)
 
         self.table_stack.setCurrentIndex(0)
@@ -456,11 +433,12 @@ class CaseTableWidget(QWidget):
 
             # 상태 — delegate가 뱃지 페인팅
             status = case.get("status", "CREATED")
-            status_item = QTableWidgetItem(STATUS_LABELS.get(status, status))
-            status_item.setTextAlignment(
+            status_kor = STATUS_LABELS.get(status, status)
+            item = QTableWidgetItem(status_kor)
+            item.setTextAlignment(
                 Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
             )
-            self.table.setItem(row, 4, status_item)
+            self.table.setItem(row, 4, item)
 
         self.table_stack.setCurrentIndex(1 if cases else 0)
         self.count_label.setText(f"전체 {len(cases)}건")
@@ -472,6 +450,27 @@ class CaseTableWidget(QWidget):
             case_id = item.data(Qt.UserRole)
             if case_id is not None:
                 self.case_selected.emit(case_id)
+
+    def _open_context_menu(self, pos):
+        index = self.table.indexAt(pos)
+        if not index.isValid():
+            return
+
+        row = index.row()
+        self.table.selectRow(row)
+        row_item = self.table.item(row, 0)
+        if row_item is None:
+            return
+
+        case_id = row_item.data(Qt.UserRole)
+        if case_id is None:
+            return
+
+        menu = QMenu(self)
+        copy_action = menu.addAction("사건 복사")
+        selected = menu.exec(self.table.viewport().mapToGlobal(pos))
+        if selected == copy_action:
+            self.copy_requested.emit(int(case_id))
 
     def _configure_status_filter_popup(self):
         view = self.status_filter.view()

@@ -45,7 +45,7 @@
 - 사이드바 로고: assets/icons/sidebar_logo.png 적용
 - Fusion 스타일 + 맑은 고딕 10pt 기본 폰트
 
-### Phase 1-5: 기능 구현 (진행 중)
+### Phase 1-5: 기능 구현 (완료)
 
 완료 항목:
 - 새 사건 등록 다이얼로그 (case_create_dialog.py)
@@ -54,11 +54,17 @@
 - 상태 콤보박스 필터
 - 진행현황 배지 숫자 자동 업데이트
 
-수정 진행 중:
-- 달력 팝업 → 인라인 QCalendarWidget 방식으로 교체
-- 환급사유 드롭다운 배경/텍스트 렌더링 수정
-- 상태 뱃지 delegate 방식으로 교체
-- 테이블 컬럼 정렬 및 홀짝 행 배경 교차
+완료 항목(추가):
+- 사건 상세 다이얼로그 (기본정보/진행이력/메모 탭)
+- 라이프사이클 7단계 상태 변경 버튼 + 날짜 입력 팝업
+- 상태 변경 시 진행이력 자동 기록(case_events)
+- 메인 테이블 더블클릭 → 사건 상세 모달 연결
+- 우클릭 컨텍스트 메뉴 `사건 복사` + 새 사건 등록 프리필
+
+버그 수정 완료:
+- 달력 닫힘 시 빈 공간 잔존 문제 해결 (`setMaximumHeight` 방식)
+- 상태 뱃지 렌더링 delegate 방식 정리 및 고정 스타일 적용
+- 콤보박스 드롭다운 화살표 렌더링 스타일 보완
 
 ---
 
@@ -134,7 +140,8 @@ refund_manager/
 │  │  │  ├ case_table.py
 │  │  │  └ summary_widget.py
 │  │  └ dialogs/
-│  │     └ case_create_dialog.py
+│  │     ├ case_create_dialog.py
+│  │     └ case_detail_dialog.py
 │  ├ database/
 │  └ services/
 ├ assets/
@@ -147,17 +154,14 @@ refund_manager/
 ## 미완료 및 추후 작업
 
 ### Phase 1-5 잔여
-- 사건 상세 다이얼로그 (더블클릭 → 상세 보기)
-- 라이프사이클 7단계 상태 변경 버튼
-- 메모 기능
-- 사건 복사 기능
-- 진행이력 테이블
+- 없음 (Phase 1-5 완료)
 
 ### 이후 Phase
 - 거래처 관리 다이얼로그 UI 연결
 - 사무소 정보 다이얼로그 UI 연결
 - PDF 뷰어 (PyMuPDF 렌더링)
 - HWP 서류 자동생성 연결
+- 사건 상세 다이얼로그 내 파일/문서 이력 연동 확장
 
 ---
 

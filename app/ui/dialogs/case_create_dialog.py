@@ -35,8 +35,17 @@ QComboBox {
     font-size: 10pt;
 }
 QComboBox::drop-down {
-    border: none;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
     width: 24px;
+    border-left: 1px solid #DDE1E7;
+}
+QComboBox::down-arrow {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #7F8C8D;
 }
 QComboBox QAbstractItemView {
     background-color: #FFFFFF;
@@ -131,7 +140,7 @@ def _make_combo(items: list[str] | None = None) -> QComboBox:
 
 
 class CaseCreateDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, prefill: dict | None = None):
         super().__init__(parent)
         self.setWindowTitle("새 사건 등록")
         self.setMinimumWidth(480)
@@ -143,9 +152,12 @@ class CaseCreateDialog(QDialog):
             + _FIELD_QSS
         )
         self._selected_date = QDate.currentDate()
+        self._prefill = prefill or {}
         self._build_ui()
         self._load_clients()
         self._load_office_defaults()
+        if self._prefill:
+            self._apply_prefill(self._prefill)
         self.resize(480, 460)  # 달력 숨김 상태 기본 높이
 
     def _build_ui(self):
@@ -225,28 +237,29 @@ class CaseCreateDialog(QDialog):
 
         # 인라인 달력 (기본 hidden)
         self.cal_widget = QCalendarWidget()
-        self.cal_widget.setFixedHeight(220)
         self.cal_widget.setGridVisible(False)
         self.cal_widget.setVerticalHeaderFormat(
             QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader
         )
         self.cal_widget.setSelectedDate(self._selected_date)
         self.cal_widget.setStyleSheet(_CAL_QSS)
-        self.cal_widget.hide()
+        self.cal_widget.setMaximumHeight(0)
+        self.cal_widget.setVisible(False)
         date_v.addWidget(self.cal_widget)
 
         def toggle_calendar():
             if self.cal_widget.isVisible():
-                self.cal_widget.hide()
+                self.cal_widget.setVisible(False)
+                self.cal_widget.setMaximumHeight(0)
             else:
-                self.cal_widget.show()
-            self.adjustSize()
+                self.cal_widget.setMaximumHeight(220)
+                self.cal_widget.setVisible(True)
 
         def on_date_selected(date: QDate):
             self._selected_date = date
             self.date_line.setText(date.toString("yyyy-MM-dd"))
-            self.cal_widget.hide()
-            self.adjustSize()
+            self.cal_widget.setVisible(False)
+            self.cal_widget.setMaximumHeight(0)
 
         btn_cal.clicked.connect(toggle_calendar)
         self.cal_widget.clicked.connect(on_date_selected)
@@ -331,6 +344,51 @@ class CaseCreateDialog(QDialog):
                 self.handler_input.setText(handler)
         except Exception:
             pass
+
+    def _apply_prefill(self, prefill: dict):
+        payer = str(prefill.get("payer_name", "") or "").strip()
+        if payer:
+            self.payer_input.setText(payer)
+
+        paid_date = prefill.get("paid_date")
+        selected = None
+        if isinstance(paid_date, QDate):
+            selected = paid_date
+        elif isinstance(paid_date, str):
+            parsed = QDate.fromString(paid_date, "yyyy-MM-dd")
+            if parsed.isValid():
+                selected = parsed
+        if selected and selected.isValid():
+            self._selected_date = selected
+            self.date_line.setText(selected.toString("yyyy-MM-dd"))
+            self.cal_widget.setSelectedDate(selected)
+
+        tax_total = prefill.get("tax_total")
+        if tax_total not in (None, ""):
+            self.tax_input.setText(str(tax_total))
+
+        reason = str(prefill.get("refund_reason", "") or "").strip()
+        if reason:
+            idx = self.reason_combo.findText(reason)
+            if idx < 0:
+                self.reason_combo.addItem(reason)
+                idx = self.reason_combo.findText(reason)
+            if idx >= 0:
+                self.reason_combo.setCurrentIndex(idx)
+
+        client_id = prefill.get("client_id")
+        if client_id is not None:
+            idx = self.client_combo.findData(client_id)
+            if idx >= 0:
+                self.client_combo.setCurrentIndex(idx)
+
+        handler = prefill.get("handler")
+        if handler is not None:
+            self.handler_input.setText(str(handler))
+
+        memo = prefill.get("memo")
+        if memo is not None:
+            self.memo_input.setPlainText(str(memo))
 
     # ── 세액 콤마 포맷 ───────────────────────────────
 
