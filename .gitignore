@@ -28,3 +28,7 @@ logs/*
 
 # Excel temp files
 ~$*.xlsx
+
+# 아이콘 파일은 추적 (assets는 gitignore 제외)
+!assets/
+!assets/icons/
