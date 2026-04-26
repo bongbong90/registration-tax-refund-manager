@@ -5,3 +5,4 @@ Pillow>=10.0.0
 numpy>=1.24.0
 openpyxl>=3.1.0
 pywin32>=306
+pypdf>=4.0.0
