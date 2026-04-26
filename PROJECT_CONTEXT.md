@@ -1,184 +1,170 @@
-# 등록면허세 환급관리 프로그램 — 프로젝트 맥락
+# 등록면허세 환급관리 프로그램 — PROJECT CONTEXT
 
-이 문서는 모든 작업 단계에서 필수 참조 문서다.
-새 작업을 시작하기 전 반드시 이 문서를 먼저 읽고 결정사항을 준수할 것.
+## 프로젝트 기본 정보
 
----
-
-## 1. 프로젝트 개요
-
-법무사사무소 부동산등기 담당자가 등록면허세 환급 업무를 관리하기 위한 
-로컬 단일PC용 데스크톱 프로그램. 위택스 납부확인서 PDF에서 OCR로 필드를 
-추출하고, 환급서류 3종(22호/14호/27호) HWP를 자동 생성하며, 
-환급 건의 라이프사이클(서류생성 → 은행송부 → 구청접수 → 환급입금 → 종결)을 
-관리한다.
+- 위치: C:\Users\User\Desktop\refund_manager
+- GitHub: bongbong90/registration-tax-refund-manager (private)
+- 개발자: 법무사사무소 실무자 (코딩 비전문자)
+- 스택: Python 3.13 / PySide6 / SQLite / PyMuPDF / PaddleOCR / pywin32
+- 사무소: 다이렉트로합동법무사사무소 (개인사업자)
 
 ---
 
-## 2. 실무 배경 (반드시 이해할 것)
+## 완료된 작업
 
-- 사무소가 거래처(은행) 대신 등록면허세를 **사무소 카드로 선납**
-- 환급사유 발생 시 환급금을 **사무소 계좌로 수령**
-- 거래처 송금·정산·수수료 개념 **없음** (환급금 = 사무소 선납분 회수)
-- 따라서 모든 환급서류의 양수인 = 사무소 고정값
-- 납부확인서상 법인번호는 마스킹(`110111-*******`)되어 있어, 
-  거래처 마스터 DB에서 전체번호를 주입해야 환급서류 완성됨
+### Phase 1-1: 기반 구축
+- 폴더 구조 생성
+- DB 스키마 설계 및 생성
+- OCR 이식 (PaddleOCR)
 
----
+### Phase 1-2: 거래처 마스터 CRUD
+- 거래처 백엔드 서비스 구현
+- clients 테이블 CRUD 완료
 
-## 3. 확정된 스펙
+### Phase 1-3-A: 사무소 정보 서비스 + HWP 치환 엔진
+- 사무소 정보 서비스 구현
+- HWP 파일 내 치환 엔진 구현
 
-| 항목 | 내용 |
-|---|---|
-| 입력 | 위택스 납부확인서 PDF (이미지 PDF, 텍스트 레이어 없음) |
-| 출력 | HWP 3종: 제22호 / 제14호 / 제27호 |
-| 식별 | 납세자 + 납부일 + 세액 (사건번호·지자체 컬럼 없음) |
-| 목록 컬럼 | 납부일 \| 납세자 \| 세액 \| 사유 \| 상태 |
-| 환급사유 | 대출취소 / 중복납부 / 착오납부 / 기타 (드롭다운 4개) |
-| 거래처 DB | SQLite (마스킹 법인번호 보완용 전체번호 저장) |
-| 양수인 | office_info.json 고정값 |
-| 정산 | 없음 |
-| 라이프사이클 | 7단계 이벤트 |
-| 폴더 구조 | data/cases/YYYY/YYYYMMDD_납세자명/ |
-| 스택 | Python 3.13 / tkinter+ttk / SQLite / PyMuPDF / PaddleOCR / pywin32 |
+### Phase 1-3-B: PDF 변환 + 통합
+- HWP to PDF 변환 기능
+- 통합 파이프라인 구성
 
----
+### Phase 1-3-C: HWP 수정 + 통합 PDF 재생성
+- HWP 수정 기능
+- 통합 PDF 재생성
 
-## 4. 라이프사이클 7단계
+### Phase 1-4: 메인 UI 전면 재작성 (완료, 커밋: 5217944)
+- app/ui/ 폴더 전면 재작성
+- theme.py get_stylesheet() 함수로 QSS 통합 관리
+- 사이드바: 260px 고정, #1B2A3B 네이비, QPalette 강제 지정
+- 메뉴 아이콘 + 텍스트, 활성 시 #2E86AB 둥근 카드 하이라이트
+- 진행현황: 카드형 위젯, 전체/진행중/완료 배지
+- 상단 컨트롤: 검색창 + 검색버튼 + 상태 콤보박스 + 새 사건 버튼
+- 메인 콘텐츠: 흰색 카드 패널, 빈 상태 안내 아이콘 + 문구
+- 앱 아이콘: assets/icons/app_icon.ico 적용
+- 사이드바 로고: assets/icons/sidebar_logo.png 적용
+- Fusion 스타일 + 맑은 고딕 10pt 기본 폰트
 
-1. 사건 접수 + 서류 생성
-2. 은행 송부 (거래처 날인용)
-3. 은행 회신 (날인본 회수)
-4. 구청 접수
-5. 구청 환급결정 통지
-6. 사무소 입금 확인
-7. 종결
+### Phase 1-5: 기능 구현 (진행 중)
 
----
+완료 항목:
+- 새 사건 등록 다이얼로그 (case_create_dialog.py)
+- 사건 목록 DB 연동 (테이블 실데이터 표시)
+- 납세자명 검색 + 검색 버튼 (Enter 키 동작 포함)
+- 상태 콤보박스 필터
+- 진행현황 배지 숫자 자동 업데이트
 
-## 5. 환급사유별 경정청구 이유 자동 문구
-
-봉봉 사무소는 짧게 적는 패턴 (실제 작성본 확인됨).
-
-| 환급사유 | 14호 경정청구 이유 |
-|---|---|
-| 대출취소 | 대출취소 |
-| 중복납부 | 중복납부 |
-| 착오납부 | 착오납부 |
-| 기타 | (자유입력) |
+수정 진행 중:
+- 달력 팝업 → 인라인 QCalendarWidget 방식으로 교체
+- 환급사유 드롭다운 배경/텍스트 렌더링 수정
+- 상태 뱃지 delegate 방식으로 교체
+- 테이블 컬럼 정렬 및 홀짝 행 배경 교차
 
 ---
 
-## 6. OCR 추출 필드 — 10개 (확정)
+## 확정 스펙
 
-납부확인서에서 OCR로 추출하는 필드:
+### 컬러
+- 사이드바 배경:            #1B2A3B
+- 메뉴 활성:                #2E86AB
+- 메뉴 호버:                #243447
+- 앱 배경:                  #F0F2F5
+- 콘텐츠 배경:              #FFFFFF
+- 포인트 버튼:              #2E86AB
+- 텍스트:                   #2D2D2D
+- 서브텍스트:               #7F8C8D
+- 테두리:                   #DDE1E7
 
-| key | 라벨 | 예시값 |
-|---|---|---|
-| payer_name | 납세자명 | 주식회사 케이뱅크 |
-| corp_no_masked | 법인번호(마스킹) | 110111-******* |
-| address | 주소 | 서울특별시 중구 을지로... |
-| tax_item_code | 세목 | 002 |
-| tax_no | 과세번호 | 005042 |
-| levy_period | 부과연월(YYYY.M) | 2025.7 |
-| tax_base | 과세표준 | 103,730,000 |
-| tax_total | 지방세 계 | 248,950 |
-| paid_date | 납부일(YYYY-MM-DD) | 2025-07-25 |
-| issue_authority | 발급지자체 | 철원군수 |
+### 폰트
+- 기본: 맑은 고딕 10pt
+- 앱 스타일: Fusion
 
-OCR 모듈은 `refund_manager_ocr_test` 프로젝트에 검증된 코드가 있음.
-이식 시 다음 4개 파일을 그대로 가져오면 됨:
-- `app/ocr/pdf_to_image.py`
-- `app/ocr/paddle_engine.py`
-- `app/ocr/field_extractor.py`
-- `app/ocr/postprocess.py`
+### 창 크기
+- 메인: 1280x780 (최소 1024x600)
+- 사건등록 다이얼로그: 480x500px
 
----
+### 라이프사이클 7단계
+CREATED → SENT_TO_BANK → BANK_RETURNED → SUBMITTED → REFUND_DECIDED → DEPOSITED → CLOSED
 
-## 7. HWP 치환자 매핑 (전체 23개)
+### 상태 한글 매핑
+- CREATED:         서류생성
+- SENT_TO_BANK:    은행송부
+- BANK_RETURNED:   은행회신
+- SUBMITTED:       구청접수
+- REFUND_DECIDED:  환급결정
+- DEPOSITED:       입금확인
+- CLOSED:          종결
 
-### 7-1. OCR 추출값 (10개)
-- `{{납세자_명칭}}`, `{{세목}}`, `{{부과연월}}`, `{{과세번호}}`, 
-  `{{과세표준}}`, `{{환급금}}`, `{{납부일_연}}`, `{{납부일_월}}`, 
-  `{{납부일_일}}`, `{{발급지자체}}`
+### 상태 뱃지 색상
+- 서류생성:                    배경 #E8F4FD / 텍스트 #2E86AB
+- 은행송부, 은행회신, 구청접수: 배경 #FEF9E7 / 텍스트 #F39C12
+- 환급결정, 입금확인:          배경 #E8F8F5 / 텍스트 #27AE60
+- 종결:                        배경 #F2F3F4 / 텍스트 #7F8C8D
 
-### 7-2. 거래처 마스터 DB (5개)
-- `{{납세자_법인번호}}` (마스킹 보완 — 전체번호)
-- `{{납세자_대표자}}`
-- `{{납세자_사업자번호}}`
-- `{{납세자_주소}}` (OCR값과 같지만 DB 우선)
-- `{{납세자_이메일}}`
+### 환급사유 확정 4종
+대출취소 / 중복납부 / 착오납부 / 기타
 
-### 7-3. 사무소 고정값 office_info.json (8개)
-- `{{사무소_명칭}}`, `{{사무소_법무사}}`, `{{사무소_대표}}`,
-  `{{사무소_주민번호}}`, `{{사무소_사업자번호}}`, `{{사무소_주소}}`,
-  `{{사무소_전화}}`, `{{사무소_이메일}}`, 
-  `{{사무소_은행}}`, `{{사무소_계좌}}`
+### 사건 목록 테이블 컬럼 및 정렬
+- 납부일 (110px 고정, 가운데 정렬)
+- 납세자 (Stretch, 좌측 정렬)
+- 세액 (110px 고정, 우측 정렬)
+- 환급사유 (130px 고정, 가운데 정렬)
+- 상태 (100px 고정, 가운데 정렬, delegate 방식 뱃지)
 
-### 7-4. 사용자 입력/자동 (2개)
-- `{{환급사유}}` — 드롭다운 선택값 (대출취소/중복납부/착오납부/기타)
-- `{{청구일}}` — 기본 오늘, 수정 가능
-
----
-
-## 8. 거래처 마스터 DB 스키마
-
-```sql
-CREATE TABLE clients (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    client_name TEXT NOT NULL,                -- 법인명 (예: "주식회사 케이뱅크")
-    normalized_name TEXT NOT NULL,            -- 정규화된 이름 (매칭용)
-    corporation_no TEXT,                      -- 법인등록번호 전체 (예: "110111-5938985")
-    business_no TEXT,                         -- 사업자등록번호 (예: "826-81-00172")
-    representative_name TEXT,                 -- 대표자 (예: "대표이사 최우형")
-    address TEXT,                             -- 주소
-    email TEXT,                               -- 이메일
-    manager_name TEXT,                        -- 담당자
-    manager_phone TEXT,                       -- 담당자 전화
-    memo TEXT,                                -- 비고
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_clients_normalized ON clients(normalized_name);
-CREATE INDEX idx_clients_corp_no ON clients(corporation_no);
-```
-
-### 거래처 매칭 규칙
-1. `client_name` 완전일치
-2. `normalized_name` 일치 (공백제거, "주식회사"/"(주)"/"㈜" 정규화)
-3. 마스킹 법인번호 앞 6자리 일치 (검증용)
-4. 자동 매칭 금지. 후보 제시 후 사용자 확인.
+### 아이콘 및 로고 파일 위치
+- assets/icons/app_icon.ico
+- assets/icons/sidebar_logo.png
+- assets/icons/taxrefund.ico
+- assets/icons/taxrefund_icon_256.png
+- assets/icons/taxrefund_logo_preview_dark.png
 
 ---
 
-## 9. 사용자 커뮤니케이션 선호
+## 주요 파일 구조
 
-- 친근하지만 핵심 위주, 과장 응원·막연한 동기부여 금지
-- 현재 판단 → 이유 → 권장 순서 → 체크포인트 구조
-- 실무 답변 시: 실무상 일반 처리 / 법령 기준 / 예규·선례 기준 구분
-- 코딩 비전문자이므로 단계별로 설명
-- 지시사항은 바로 복붙 가능한 형태로
+refund_manager/
+├ main.py
+├ app/
+│  ├ ui/
+│  │  ├ main_window.py
+│  │  ├ styles/
+│  │  │  └ theme.py
+│  │  ├ widgets/
+│  │  │  ├ sidebar.py
+│  │  │  ├ case_table.py
+│  │  │  └ summary_widget.py
+│  │  └ dialogs/
+│  │     └ case_create_dialog.py
+│  ├ database/
+│  └ services/
+├ assets/
+│  └ icons/
+└ tests/
+   └ test_ui.py
 
 ---
 
-## 10. 진행 단계 추적
+## 미완료 및 추후 작업
 
-- [x] 환경 구축 (PaddleOCR 3.x 안정화)
-- [x] OCR 검증 미니 프로젝트 (97.1% 자동 추출 성공)
-- [ ] **Phase 1-1** (현재): 본 프로젝트 폴더 구조 + DB 스키마 + OCR 이식
-- [x] **Phase 1-2**: 거래처 마스터 CRUD
-- [ ] **Phase 1-3**: HWP 3종 치환·생성
-- [ ] **Phase 1-4**: 사건 생성 플로우 + 메인 GUI
-- [ ] **Phase 2**: 대시보드, 이벤트 타임라인, 통계
+### Phase 1-5 잔여
+- 사건 상세 다이얼로그 (더블클릭 → 상세 보기)
+- 라이프사이클 7단계 상태 변경 버튼
+- 메모 기능
+- 사건 복사 기능
+- 진행이력 테이블
+
+### 이후 Phase
+- 거래처 관리 다이얼로그 UI 연결
+- 사무소 정보 다이얼로그 UI 연결
+- PDF 뷰어 (PyMuPDF 렌더링)
+- HWP 서류 자동생성 연결
 
 ---
 
-## 11. 절대 금지 사항
+## 운영 규칙
 
-- 환급사유에 "감액경정", "등기각하" 추가 금지
-- 사건번호 컬럼 추가 금지
-- 정산·송금 관련 필드 추가 금지
-- 유료 외부 API 사용 금지 (OCR은 로컬 PaddleOCR만)
-- 거래처 자동매칭 후 자동확정 금지 (반드시 사용자 확인)
-- ~~ROI 좌표 기반 OCR 추출~~ (폐기됨, 키워드 매칭 사용)
+- 작업 완료 시마다 이 파일 업데이트 후 커밋에 포함
+- Phase 완료 시: 전체 섹션 업데이트
+- 중간 수정 시: 해당 항목만 수정
+- 확정 스펙 변경 시: 즉시 반영
+- 노션 정리는 별도 채팅방에서 별도 요청 시에만 수행
