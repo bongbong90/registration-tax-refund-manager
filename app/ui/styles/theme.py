@@ -152,4 +152,67 @@ QStatusBar {
     font-family: "맑은 고딕";
     padding: 2px 8px;
 }
+
+/* ─── 날짜 입력 ─── */
+QDateEdit {
+    background-color: #FFFFFF;
+    border: 1px solid #DDE1E7;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #2D2D2D;
+}
+
+QDateEdit::drop-down {
+    border: none;
+    width: 20px;
+}
+
+/* ─── 달력 (인라인 임베드) ─── */
+QCalendarWidget {
+    background-color: #FFFFFF;
+    border: 1px solid #DDE1E7;
+    border-radius: 8px;
+    font-size: 9pt;
+}
+
+QCalendarWidget QWidget#qt_calendar_navigationbar {
+    background-color: #2C3E50;
+    min-height: 36px;
+}
+
+QCalendarWidget QToolButton {
+    color: #FFFFFF;
+    background-color: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-weight: bold;
+    font-size: 9pt;
+}
+
+QCalendarWidget QToolButton:hover {
+    background-color: #2E86AB;
+}
+
+QCalendarWidget QToolButton::menu-indicator {
+    image: none;
+}
+
+QCalendarWidget QMenu {
+    background-color: #FFFFFF;
+    border: 1px solid #DDE1E7;
+    color: #2D2D2D;
+}
+
+QCalendarWidget QAbstractItemView {
+    background-color: #FFFFFF;
+    selection-background-color: #2E86AB;
+    selection-color: #FFFFFF;
+    color: #2D2D2D;
+    alternate-background-color: #F8F9FA;
+}
+
+QCalendarWidget QAbstractItemView:disabled {
+    color: #BDC3C7;
+}
 """

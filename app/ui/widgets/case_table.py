@@ -2,9 +2,10 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QTableWidget, QTableWidgetItem, QHeaderView,
     QLineEdit, QComboBox, QPushButton, QLabel,
-    QStackedWidget, QFrame, QListView
+    QStackedWidget, QFrame, QListView,
+    QStyledItemDelegate, QStyle,
 )
-from PySide6.QtCore import Signal, Qt, QTimer
+from PySide6.QtCore import Signal, Qt, QTimer, QRect
 from PySide6.QtGui import QColor, QPixmap, QPainter, QPen, QPalette
 
 
@@ -27,6 +28,67 @@ STATUS_COLORS = {
     "DEPOSITED":     "#1E8449",
     "CLOSED":        "#95A5A6",
 }
+
+# (배경색, 텍스트색)
+STATUS_BADGE = {
+    "CREATED":        ("#E8F4FD", "#2E86AB"),
+    "SENT_TO_BANK":   ("#FEF9E7", "#F39C12"),
+    "BANK_RETURNED":  ("#FEF9E7", "#F39C12"),
+    "SUBMITTED":      ("#FEF9E7", "#F39C12"),
+    "REFUND_DECIDED": ("#E8F8F5", "#27AE60"),
+    "DEPOSITED":      ("#E8F8F5", "#27AE60"),
+    "CLOSED":         ("#F2F3F4", "#7F8C8D"),
+}
+
+ROW_BG = ("#FFFFFF", "#F8F9FA")  # 짝수, 홀수
+
+
+class StatusDelegate(QStyledItemDelegate):
+    """상태 컬럼 — 둥근 뱃지 직접 페인팅."""
+
+    _STYLE = {
+        "서류생성": ("#E8F4FD", "#2E86AB"),
+        "은행송부": ("#FEF9E7", "#F39C12"),
+        "은행회신": ("#FEF9E7", "#F39C12"),
+        "구청접수": ("#FEF9E7", "#F39C12"),
+        "환급결정": ("#E8F8F5", "#27AE60"),
+        "입금확인": ("#E8F8F5", "#27AE60"),
+        "종결":     ("#F2F3F4", "#7F8C8D"),
+    }
+
+    def paint(self, painter: QPainter, option, index):
+        text = index.data() or ""
+        bg, fg = self._STYLE.get(text, ("#F2F3F4", "#7F8C8D"))
+
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # 셀 배경
+        if option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, QColor("#D6EAF8"))
+        elif option.state & QStyle.StateFlag.State_MouseOver:
+            painter.fillRect(option.rect, QColor("#EBF5FB"))
+        else:
+            row = index.row()
+            painter.fillRect(option.rect, QColor(ROW_BG[row % 2]))
+
+        # 뱃지
+        badge_w, badge_h = 76, 24
+        x = option.rect.x() + (option.rect.width() - badge_w) // 2
+        y = option.rect.y() + (option.rect.height() - badge_h) // 2
+        badge_rect = QRect(x, y, badge_w, badge_h)
+
+        painter.setBrush(QColor(bg))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRoundedRect(badge_rect, 12, 12)
+
+        painter.setPen(QColor(fg))
+        font = painter.font()
+        font.setBold(True)
+        font.setPointSize(9)
+        painter.setFont(font)
+        painter.drawText(badge_rect, Qt.AlignmentFlag.AlignCenter, text)
+        painter.restore()
 
 
 class AlignedPopupComboBox(QComboBox):
@@ -86,7 +148,7 @@ class CaseTableWidget(QWidget):
     add_requested = Signal()
 
     COLUMNS    = ["납부일", "납세자", "세액", "환급사유", "상태"]
-    COL_WIDTHS = [110, 0, 120, 120, 110]  # 0 = stretch
+    COL_WIDTHS = [110, 0, 110, 130, 100]  # 0 = stretch
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -125,6 +187,24 @@ class CaseTableWidget(QWidget):
         sb_layout.addWidget(self.search_input)
 
         top_bar.addWidget(search_bar, stretch=1)
+
+        btn_search = QPushButton("검색")
+        btn_search.setFixedSize(64, 42)
+        btn_search.setCursor(Qt.PointingHandCursor)
+        btn_search.setStyleSheet(
+            "QPushButton {"
+            " background-color: #F0F2F5;"
+            " border: 1px solid #DDE1E7;"
+            " border-radius: 6px;"
+            " color: #2D2D2D;"
+            " font-size: 10pt;"
+            " font-family: '맑은 고딕';"
+            "}"
+            "QPushButton:hover { background-color: #DDE1E7; }"
+        )
+        btn_search.clicked.connect(self._apply_filter)
+        self.search_input.returnPressed.connect(self._apply_filter)
+        top_bar.addWidget(btn_search)
 
         self.status_filter = AlignedPopupComboBox()
         self.status_filter.setFixedSize(160, 42)
@@ -267,10 +347,18 @@ class CaseTableWidget(QWidget):
             " border-bottom: 1px solid #EEF2F6;"
             "}"
             "QHeaderView::section {"
-            " background-color: #F8FAFC;"
+            " background-color: #F8F9FA;"
+            " color: #7F8C8D;"
+            " font-weight: bold;"
+            " font-size: 9pt;"
+            " font-family: '맑은 고딕';"
+            " padding: 8px;"
             " border: none;"
-            " border-bottom: 1px solid #E5EAF0;"
-            " border-right: 1px solid #E5EAF0;"
+            " border-right: 1px solid #DDE1E7;"
+            " border-bottom: 2px solid #DDE1E7;"
+            "}"
+            "QHeaderView::section:last {"
+            " border-right: none;"
             "}"
         )
 
@@ -282,6 +370,8 @@ class CaseTableWidget(QWidget):
                 header.setSectionResizeMode(i, QHeaderView.Fixed)
                 self.table.setColumnWidth(i, width)
 
+        self.table.setMouseTracking(True)
+        self.table.setItemDelegateForColumn(4, StatusDelegate(self.table))
         self.table.doubleClicked.connect(self._on_double_click)
         self.table_stack.addWidget(self.table)
 
@@ -302,6 +392,11 @@ class CaseTableWidget(QWidget):
 
         layout.addWidget(content_card, stretch=1)
 
+    def refresh_from_db(self):
+        """DB에서 사건 목록 재조회 후 테이블 갱신."""
+        from app.services.case_service import list_cases
+        self.load_cases(list_cases())
+
     def load_cases(self, cases: list[dict]):
         self._cases = cases
         self._apply_filter()
@@ -317,34 +412,59 @@ class CaseTableWidget(QWidget):
         ]
         self._render(filtered)
 
+    # 컬럼별 정렬 플래그 (납부일:center, 납세자:left, 세액:right, 환급사유:center)
+    _COL_ALIGN = [
+        Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter,
+        Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+        Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
+        Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter,
+    ]
+
     def _render(self, cases: list[dict]):
         self.table.setRowCount(0)
 
-        for case in cases:
+        for idx, case in enumerate(cases):
             row = self.table.rowCount()
             self.table.insertRow(row)
             self.table.setRowHeight(row, 44)
 
-            for col, text in enumerate([
+            row_bg = QColor(ROW_BG[idx % 2])
+
+            # tax_total 콤마 포맷
+            tax_raw = case.get("tax_total", "")
+            try:
+                tax_str = f"{int(tax_raw):,}" if tax_raw != "" else ""
+            except (ValueError, TypeError):
+                tax_str = str(tax_raw)
+
+            refund_reason = case.get("refund_reason", "")
+            texts = [
                 case.get("paid_date", ""),
                 case.get("payer_name", ""),
-                case.get("tax_total", ""),
-                case.get("refund_reason", ""),
-            ]):
+                tax_str,
+                refund_reason,
+            ]
+            for col, text in enumerate(texts):
                 item = QTableWidgetItem(text)
-                item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+                item.setTextAlignment(self._COL_ALIGN[col])
+                item.setBackground(row_bg)
                 if col == 0:
                     item.setData(Qt.UserRole, case.get("id"))
+                if col == 3:
+                    item.setToolTip(refund_reason)
                 self.table.setItem(row, col, item)
 
+            # 상태 — delegate가 뱃지 페인팅
             status = case.get("status", "CREATED")
             status_item = QTableWidgetItem(STATUS_LABELS.get(status, status))
-            status_item.setForeground(QColor(STATUS_COLORS.get(status, "#7F8C8D")))
-            status_item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+            status_item.setTextAlignment(
+                Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+            )
             self.table.setItem(row, 4, status_item)
 
         self.table_stack.setCurrentIndex(1 if cases else 0)
         self.count_label.setText(f"전체 {len(cases)}건")
+
 
     def _on_double_click(self, index):
         item = self.table.item(index.row(), 0)

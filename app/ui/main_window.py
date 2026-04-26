@@ -22,6 +22,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._connect_signals()
         self.sidebar.set_active("refund")
+        self._refresh()
 
     def _build_ui(self):
         central = QWidget()
@@ -79,8 +80,27 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(self._PAGE_MAP.get(key, 0))
         self.status_bar.showMessage(self._LABEL_MAP.get(key, ""))
 
+    def _refresh(self):
+        """사건 목록 + 진행현황 배지 갱신."""
+        self.case_page.refresh_from_db()
+        try:
+            from app.services.case_service import get_case_stats
+            stats = get_case_stats()
+            self.sidebar.summary.update_summary(
+                total=stats["total"],
+                in_progress=stats["in_progress"],
+                closed=stats["closed"],
+            )
+        except Exception:
+            pass
+
     def _on_case_selected(self, case_id: int):
         self.status_bar.showMessage(f"사건 {case_id} 선택됨")
 
     def _on_add_case(self):
-        self.status_bar.showMessage("새 사건 생성 준비 중...")
+        from app.ui.dialogs.case_create_dialog import CaseCreateDialog
+        from PySide6.QtWidgets import QDialog
+        dlg = CaseCreateDialog(self)
+        if dlg.exec() == QDialog.Accepted:
+            self._refresh()
+            self.status_bar.showMessage("새 사건이 등록됐습니다.")
