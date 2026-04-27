@@ -35,17 +35,15 @@ QComboBox {
     font-size: 10pt;
 }
 QComboBox::drop-down {
-    subcontrol-origin: padding;
-    subcontrol-position: top right;
-    width: 24px;
-    border-left: 1px solid #DDE1E7;
+    border: none;
+    width: 20px;
 }
 QComboBox::down-arrow {
     width: 0;
     height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 6px solid #7F8C8D;
+    border-style: solid;
+    border-width: 5px 4px 0 4px;
+    border-color: #7F8C8D transparent transparent transparent;
 }
 QComboBox QAbstractItemView {
     background-color: #FFFFFF;
@@ -132,9 +130,11 @@ def _make_combo(items: list[str] | None = None) -> QComboBox:
 
     combo.setMaxVisibleItems(8)
 
-    # 팝업 생성 후 플래그 적용 (show 전에 미리 설정)
+    # 팝업 검은 배경 + 그림자 제거
     view.window().setWindowFlags(
-        Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint
+        Qt.WindowType.Popup
+        | Qt.WindowType.FramelessWindowHint
+        | Qt.WindowType.NoDropShadowWindowHint
     )
     return combo
 
@@ -235,34 +235,39 @@ class CaseCreateDialog(QDialog):
         date_h.addWidget(btn_cal)
         date_v.addLayout(date_h)
 
-        # 인라인 달력 (기본 hidden)
-        self.cal_widget = QCalendarWidget()
-        self.cal_widget.setGridVisible(False)
-        self.cal_widget.setVerticalHeaderFormat(
+        # 인라인 달력 — 컨테이너 QWidget show/hide 방식
+        cal = QCalendarWidget()
+        cal.setGridVisible(False)
+        cal.setVerticalHeaderFormat(
             QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader
         )
-        self.cal_widget.setSelectedDate(self._selected_date)
-        self.cal_widget.setStyleSheet(_CAL_QSS)
-        self.cal_widget.setMaximumHeight(0)
-        self.cal_widget.setVisible(False)
-        date_v.addWidget(self.cal_widget)
+        cal.setSelectedDate(self._selected_date)
+        cal.setStyleSheet(_CAL_QSS)
+
+        self.cal_container = QWidget()
+        self.cal_container.setFixedHeight(220)
+        container_layout = QVBoxLayout(self.cal_container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.addWidget(cal)
+        self.cal_container.hide()
+
+        self.cal_widget = cal  # _apply_prefill 등에서 참조
+
+        date_v.addWidget(self.cal_container)
 
         def toggle_calendar():
-            if self.cal_widget.isVisible():
-                self.cal_widget.setVisible(False)
-                self.cal_widget.setMaximumHeight(0)
+            if self.cal_container.isVisible():
+                self.cal_container.hide()
             else:
-                self.cal_widget.setMaximumHeight(220)
-                self.cal_widget.setVisible(True)
+                self.cal_container.show()
 
         def on_date_selected(date: QDate):
             self._selected_date = date
             self.date_line.setText(date.toString("yyyy-MM-dd"))
-            self.cal_widget.setVisible(False)
-            self.cal_widget.setMaximumHeight(0)
+            self.cal_container.hide()
 
         btn_cal.clicked.connect(toggle_calendar)
-        self.cal_widget.clicked.connect(on_date_selected)
+        cal.clicked.connect(on_date_selected)
 
         form.addRow(lbl("납부일 *"), date_container)
 

@@ -38,22 +38,61 @@ class CaseDetailDialog(QDialog):
         self.setModal(True)
         self.resize(600, 700)
         self.setFont(FONT)
-        self.setStyleSheet(
-            "QDialog { background-color: #FFFFFF; font-family: '맑은 고딕'; }"
-            "QLineEdit, QDateEdit, QTextEdit, QComboBox {"
-            " border: 1px solid #DDE1E7; border-radius: 6px; padding: 6px 10px;"
-            "}"
-            "QPushButton#btn_primary {"
-            " background-color: #2E86AB; color: #FFFFFF; border: none;"
-            " border-radius: 6px; font-weight: bold; padding: 8px 14px;"
-            "}"
-            "QPushButton#btn_primary:hover { background-color: #2471A3; }"
-            "QPushButton#btn_secondary {"
-            " background-color: #FFFFFF; color: #2D2D2D;"
-            " border: 1px solid #DDE1E7; border-radius: 6px; padding: 8px 14px;"
-            "}"
-            "QPushButton#btn_secondary:hover { background-color: #F0F2F5; }"
-        )
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #F0F2F5;
+                font-family: '맑은 고딕';
+            }
+            QTabWidget::pane {
+                background-color: #FFFFFF;
+                border: 1px solid #DDE1E7;
+                border-radius: 6px;
+            }
+            QTabBar::tab {
+                background-color: #F0F2F5;
+                color: #7F8C8D;
+                padding: 8px 16px;
+                border: none;
+                font-size: 10pt;
+                font-family: '맑은 고딕';
+            }
+            QTabBar::tab:selected {
+                background-color: #FFFFFF;
+                color: #2D2D2D;
+                font-weight: bold;
+                border-bottom: 2px solid #2E86AB;
+            }
+            QLineEdit, QDateEdit, QTextEdit, QComboBox {
+                background-color: #FFFFFF;
+                border: 1px solid #DDE1E7;
+                border-radius: 6px;
+                padding: 6px 10px;
+                color: #2D2D2D;
+                font-family: '맑은 고딕';
+                font-size: 10pt;
+            }
+            QLabel {
+                color: #2D2D2D;
+                background: transparent;
+            }
+            QPushButton#btn_primary {
+                background-color: #2E86AB;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 6px;
+                font-weight: bold;
+                padding: 8px 14px;
+            }
+            QPushButton#btn_primary:hover { background-color: #2471A3; }
+            QPushButton#btn_secondary {
+                background-color: #FFFFFF;
+                color: #2D2D2D;
+                border: 1px solid #DDE1E7;
+                border-radius: 6px;
+                padding: 8px 14px;
+            }
+            QPushButton#btn_secondary:hover { background-color: #F0F2F5; }
+        """)
 
         self._build_ui()
         self._load_clients()
@@ -168,8 +207,8 @@ class CaseDetailDialog(QDialog):
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.history_table.setColumnWidth(0, 170)
-        self.history_table.setColumnWidth(2, 120)
+        self.history_table.setColumnWidth(0, 140)
+        self.history_table.setColumnWidth(2, 150)
 
         layout.addWidget(self.history_table, stretch=1)
         self.tabs.addTab(tab, "진행이력")
@@ -265,6 +304,7 @@ class CaseDetailDialog(QDialog):
             col1.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
             col2 = QTableWidgetItem(actor)
             col2.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            col2.setToolTip(actor)
 
             self.history_table.setItem(row, 0, col0)
             self.history_table.setItem(row, 1, col1)
