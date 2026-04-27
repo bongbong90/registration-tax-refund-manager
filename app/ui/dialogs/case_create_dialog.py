@@ -3,8 +3,9 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLineEdit, QCalendarWidget, QComboBox, QTextEdit,
     QPushButton, QLabel, QMessageBox, QFrame, QWidget, QListView,
+    QStyledItemDelegate, QSizePolicy,
 )
-from PySide6.QtCore import Qt, QDate
+from PySide6.QtCore import Qt, QDate, QTimer, QObject, QEvent
 from PySide6.QtGui import QFont
 
 
@@ -29,42 +30,42 @@ QComboBox {
     background-color: #FFFFFF;
     border: 1px solid #DDE1E7;
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 6px 10px 6px 10px;
     color: #2D2D2D;
     font-family: '맑은 고딕';
     font-size: 10pt;
 }
 QComboBox::drop-down {
-    border: none;
-    width: 20px;
-}
-QComboBox::down-arrow {
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 5px 4px 0 4px;
-    border-color: #7F8C8D transparent transparent transparent;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 26px;
+    border-left: 1px solid #E6ECF2;
+    background: #FAFBFD;
 }
 QComboBox QAbstractItemView {
     background-color: #FFFFFF;
-    border: 1px solid #DDE1E7;
-    outline: none;
+    border: none;
+    outline: 0px;
+    padding: 4px 0px;
     color: #2D2D2D;
     font-family: '맑은 고딕';
     font-size: 10pt;
 }
 QComboBox QAbstractItemView::item {
-    height: 32px;
-    padding-left: 10px;
+    min-height: 32px;
+    padding: 6px 12px;
     background-color: #FFFFFF;
     color: #2D2D2D;
+    border: none;
 }
 QComboBox QAbstractItemView::item:hover {
-    background-color: #F0F2F5;
+    background-color: #F3F7FB;
+    border: none;
 }
 QComboBox QAbstractItemView::item:selected {
-    background-color: #EBF5FB;
-    color: #2E86AB;
+    background-color: #EAF3FB;
+    color: #2D2D2D;
+    border: none;
 }
 """
 
@@ -112,6 +113,20 @@ QCalendarWidget QAbstractItemView:disabled {
 """
 
 
+class _ComboArrowEventFilter(QObject):
+    """콤보박스 크기 변경 시 ▾ 오버레이 위치를 유지한다."""
+
+    def eventFilter(self, watched, event):
+        if event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            arrow = getattr(watched, "_arrow_label", None)
+            if arrow is not None:
+                arrow.move(watched.width() - 18, (watched.height() - 16) // 2)
+        return super().eventFilter(watched, event)
+
+
+_COMBO_ARROW_FILTER = _ComboArrowEventFilter()
+
+
 def _make_combo(items: list[str] | None = None) -> QComboBox:
     """공통 콤보박스 팩토리 — 폰트·QSS·팝업 처리 일괄 적용."""
     combo = QComboBox()
@@ -119,24 +134,68 @@ def _make_combo(items: list[str] | None = None) -> QComboBox:
     combo.setStyleSheet(_COMBO_QSS)
     combo.setMinimumWidth(160)
     combo.setFixedHeight(34)
-
-    view = QListView()
-    view.setFont(_FONT)
-    combo.setView(view)
+    combo.setItemDelegate(QStyledItemDelegate(combo))
 
     if items:
         for item in items:
             combo.addItem(item)
 
     combo.setMaxVisibleItems(8)
+    setup_combo(combo)
+    _attach_combo_arrow(combo)
+    return combo
 
-    # 팝업 검은 배경 + 그림자 제거
+
+def setup_combo(combo: QComboBox) -> None:
+    """드롭다운 검은 배경/외곽선 이슈 방지용 공통 팝업 스타일."""
+    view = QListView()
+    view.setFont(_FONT)
+    view.setStyleSheet(
+        """
+        QListView {
+            background-color: #FFFFFF;
+            border: 1px solid #DDE1E7;
+            outline: none;
+            color: #2D2D2D;
+            font-family: '맑은 고딕';
+            font-size: 10pt;
+        }
+        QListView::item {
+            height: 32px;
+            padding-left: 10px;
+            background-color: #FFFFFF;
+            border: none;
+        }
+        QListView::item:hover {
+            background-color: #F0F2F5;
+        }
+        QListView::item:selected {
+            background-color: #EBF5FB;
+            color: #2E86AB;
+        }
+        """
+    )
+    combo.setView(view)
     view.window().setWindowFlags(
         Qt.WindowType.Popup
         | Qt.WindowType.FramelessWindowHint
         | Qt.WindowType.NoDropShadowWindowHint
     )
-    return combo
+    view.window().setStyleSheet("background-color: #FFFFFF; border: none;")
+    view.viewport().setStyleSheet("background-color: #FFFFFF; border: none;")
+
+
+def _attach_combo_arrow(combo: QComboBox) -> None:
+    arrow = QLabel("▾", combo)
+    arrow.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+    arrow.setStyleSheet(
+        "color: #7F8C8D; font-size: 11pt; font-weight: bold; background: transparent;"
+    )
+    arrow.setFixedSize(12, 16)
+    arrow.show()
+    combo._arrow_label = arrow
+    combo.installEventFilter(_COMBO_ARROW_FILTER)
+    arrow.move(combo.width() - 18, (combo.height() - 16) // 2)
 
 
 class CaseCreateDialog(QDialog):
@@ -151,6 +210,7 @@ class CaseCreateDialog(QDialog):
             " font-family: '맑은 고딕'; font-size: 10pt; }"
             + _FIELD_QSS
         )
+        self._base_height = 460
         self._selected_date = QDate.currentDate()
         self._prefill = prefill or {}
         self._build_ui()
@@ -158,7 +218,7 @@ class CaseCreateDialog(QDialog):
         self._load_office_defaults()
         if self._prefill:
             self._apply_prefill(self._prefill)
-        self.resize(480, 460)  # 달력 숨김 상태 기본 높이
+        self.resize(480, self._base_height)  # 달력 숨김 상태 기본 높이
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -198,13 +258,9 @@ class CaseCreateDialog(QDialog):
         form.addRow(lbl("납세자명 *"), self.payer_input)
 
         # 납부일 — 인라인 달력
-        date_container = QWidget()
-        date_container.setStyleSheet("background: transparent;")
-        date_v = QVBoxLayout(date_container)
-        date_v.setContentsMargins(0, 0, 0, 0)
-        date_v.setSpacing(4)
-
-        date_h = QHBoxLayout()
+        date_row_widget = QWidget()
+        date_row_widget.setStyleSheet("background: transparent;")
+        date_h = QHBoxLayout(date_row_widget)
         date_h.setContentsMargins(0, 0, 0, 0)
         date_h.setSpacing(4)
 
@@ -233,7 +289,6 @@ class CaseCreateDialog(QDialog):
 
         date_h.addWidget(self.date_line)
         date_h.addWidget(btn_cal)
-        date_v.addLayout(date_h)
 
         # 인라인 달력 — 컨테이너 QWidget show/hide 방식
         cal = QCalendarWidget()
@@ -245,31 +300,40 @@ class CaseCreateDialog(QDialog):
         cal.setStyleSheet(_CAL_QSS)
 
         self.cal_container = QWidget()
-        self.cal_container.setFixedHeight(220)
+        self._calendar_height = 220
+        self.cal_container.setFixedHeight(self._calendar_height)
+        cal_policy = QSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
+        cal_policy.setRetainSizeWhenHidden(False)
+        self.cal_container.setSizePolicy(cal_policy)
         container_layout = QVBoxLayout(self.cal_container)
         container_layout.setContentsMargins(0, 0, 0, 0)
         container_layout.addWidget(cal)
-        self.cal_container.hide()
 
         self.cal_widget = cal  # _apply_prefill 등에서 참조
-
-        date_v.addWidget(self.cal_container)
+        self._form_layout = form
+        form.addRow(lbl("납부일 *"), date_row_widget)
+        self._calendar_row_label = QLabel("")
+        self._calendar_row_label.setStyleSheet("background: transparent;")
+        form.addRow(self._calendar_row_label, self.cal_container)
+        self._calendar_row_index = form.rowCount() - 1
+        self._hide_calendar()
 
         def toggle_calendar():
             if self.cal_container.isVisible():
-                self.cal_container.hide()
+                self._hide_calendar()
             else:
-                self.cal_container.show()
+                self._show_calendar()
 
         def on_date_selected(date: QDate):
             self._selected_date = date
             self.date_line.setText(date.toString("yyyy-MM-dd"))
-            self.cal_container.hide()
+            self._hide_calendar()
 
         btn_cal.clicked.connect(toggle_calendar)
         cal.clicked.connect(on_date_selected)
-
-        form.addRow(lbl("납부일 *"), date_container)
 
         # 세액
         self.tax_input = QLineEdit()
@@ -330,6 +394,22 @@ class CaseCreateDialog(QDialog):
         btn_row.addWidget(btn_cancel)
         btn_row.addWidget(btn_ok)
         root.addLayout(btn_row)
+
+    def _show_calendar(self):
+        self.cal_container.setFixedHeight(self._calendar_height)
+        self.cal_container.show()
+        self._form_layout.setRowVisible(self._calendar_row_index, True)
+        expanded = max(self.height(), self._base_height + self._calendar_height + 14)
+        self.resize(self.width(), expanded)
+
+    def _hide_calendar(self):
+        self.cal_container.hide()
+        self.cal_container.setFixedHeight(0)
+        self._form_layout.setRowVisible(self._calendar_row_index, False)
+        QTimer.singleShot(0, self._restore_collapsed_height)
+
+    def _restore_collapsed_height(self):
+        self.resize(self.width(), self._base_height)
 
     # ── 데이터 로드 ──────────────────────────────────
 

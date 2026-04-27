@@ -44,15 +44,11 @@ QComboBox {
     color: #2D2D2D;
 }
 QComboBox::drop-down {
-    border: none;
-    width: 20px;
-}
-QComboBox::down-arrow {
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 5px 4px 0 4px;
-    border-color: #7F8C8D transparent transparent transparent;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 26px;
+    border-left: 1px solid #E6ECF2;
+    background: #FAFBFD;
 }
 
 /* ─── 기본 버튼 ─── */

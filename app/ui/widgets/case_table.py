@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QStackedWidget, QFrame, QListView,
     QStyledItemDelegate, QStyle, QMenu,
 )
-from PySide6.QtCore import Signal, Qt, QTimer, QRect
+from PySide6.QtCore import Signal, Qt, QTimer, QRect, QObject, QEvent
 from PySide6.QtGui import QColor, QPixmap, QPainter, QPen, QPalette, QFont
 
 
@@ -20,6 +20,18 @@ STATUS_LABELS = {
 }
 
 ROW_BG = ("#FFFFFF", "#F8F9FA")  # 짝수, 홀수
+
+
+class _ComboArrowEventFilter(QObject):
+    def eventFilter(self, watched, event):
+        if event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            arrow = getattr(watched, "_arrow_label", None)
+            if arrow is not None:
+                arrow.move(watched.width() - 18, (watched.height() - 16) // 2)
+        return super().eventFilter(watched, event)
+
+
+_COMBO_ARROW_FILTER = _ComboArrowEventFilter()
 
 
 class StatusDelegate(QStyledItemDelegate):
@@ -40,12 +52,17 @@ class StatusDelegate(QStyledItemDelegate):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        base_brush = index.data(Qt.ItemDataRole.BackgroundRole)
+        base_color = QColor("#FFFFFF")
+        if hasattr(base_brush, "color"):
+            base_color = base_brush.color()
+
         if option.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(option.rect, QColor("#D6EAF8"))
         elif option.state & QStyle.StateFlag.State_MouseOver:
             painter.fillRect(option.rect, QColor("#EBF5FB"))
         else:
-            painter.fillRect(option.rect, QColor("#FFFFFF"))
+            painter.fillRect(option.rect, base_color)
 
         badge_w = 80
         badge_h = 24
@@ -117,13 +134,26 @@ class AlignedPopupComboBox(QComboBox):
         view.setFixedHeight(popup_height)
 
 
+def _attach_combo_arrow(combo: QComboBox) -> None:
+    arrow = QLabel("▾", combo)
+    arrow.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+    arrow.setStyleSheet(
+        "color: #7F8C8D; font-size: 11pt; font-weight: bold; background: transparent;"
+    )
+    arrow.setFixedSize(12, 16)
+    arrow.show()
+    combo._arrow_label = arrow
+    combo.installEventFilter(_COMBO_ARROW_FILTER)
+    arrow.move(combo.width() - 18, (combo.height() - 16) // 2)
+
+
 class CaseTableWidget(QWidget):
     case_selected = Signal(int)
     add_requested = Signal()
     copy_requested = Signal(int)
 
     COLUMNS    = ["납부일", "납세자", "세액", "환급사유", "상태"]
-    COL_WIDTHS = [110, 0, 110, 130, 100]  # 0 = stretch
+    COL_WIDTHS = [112, 0, 116, 150, 116]  # 0 = stretch
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -184,6 +214,7 @@ class CaseTableWidget(QWidget):
         self.status_filter = AlignedPopupComboBox()
         self.status_filter.setFixedSize(160, 42)
         self.status_filter.setView(QListView())
+        self.status_filter.setItemDelegate(QStyledItemDelegate(self.status_filter))
         self.status_filter.setStyleSheet(
             """
             QComboBox {
@@ -195,17 +226,11 @@ class CaseTableWidget(QWidget):
                 min-width: 150px;
             }
             QComboBox::drop-down {
-                border: none;
-                background: transparent;
-                width: 28px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                width: 0px;
-                height: 0px;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 6px solid #7F8C8D;
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 26px;
+                border-left: 1px solid #E6ECF2;
+                background: #FAFBFD;
             }
             QComboBox QAbstractItemView {
                 background-color: #FFFFFF;
@@ -232,6 +257,7 @@ class CaseTableWidget(QWidget):
             }
             """
         )
+        _attach_combo_arrow(self.status_filter)
         self.status_filter.addItem("전체 상태", "ALL")
         for key, label in STATUS_LABELS.items():
             self.status_filter.addItem(label, key)
@@ -394,7 +420,7 @@ class CaseTableWidget(QWidget):
         Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter,
         Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
         Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
-        Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter,
+        Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
     ]
 
     def _render(self, cases: list[dict]):
@@ -438,6 +464,7 @@ class CaseTableWidget(QWidget):
             item.setTextAlignment(
                 Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
             )
+            item.setBackground(row_bg)
             self.table.setItem(row, 4, item)
 
         self.table_stack.setCurrentIndex(1 if cases else 0)
